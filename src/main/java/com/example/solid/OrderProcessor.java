@@ -3,6 +3,11 @@ package com.example.solid;
 import com.example.solid.interfaces.DiscountCalculator;
 import com.example.solid.interfaces.NotificationService;
 import com.example.solid.interfaces.PaymentProcessor;
+import com.example.solid.services.OrderNotificationService;
+import com.example.solid.services.OrderPaymentService;
+import com.example.solid.services.OrderPricing;
+import com.example.solid.services.OrderPricingService;
+import com.example.solid.services.PaymentOutcome;
 
 /**
  * SRP: This class has a single responsibility - processing orders
@@ -12,11 +17,25 @@ import com.example.solid.interfaces.PaymentProcessor;
 public class OrderProcessor {
     private final PaymentProcessor paymentProcessor;
     private final NotificationService notificationService;
+    private final OrderPricingService orderPricingService;
+    private final OrderPaymentService orderPaymentService;
+    private final OrderNotificationService orderNotificationService;
     
     // DIP: Constructor injection of dependencies (abstractions)
     public OrderProcessor(PaymentProcessor paymentProcessor, NotificationService notificationService) {
+        this(paymentProcessor, notificationService, new OrderPricingService(), new OrderPaymentService(), new OrderNotificationService());
+    }
+
+    public OrderProcessor(PaymentProcessor paymentProcessor,
+                          NotificationService notificationService,
+                          OrderPricingService orderPricingService,
+                          OrderPaymentService orderPaymentService,
+                          OrderNotificationService orderNotificationService) {
         this.paymentProcessor = paymentProcessor;
         this.notificationService = notificationService;
+        this.orderPricingService = orderPricingService;
+        this.orderPaymentService = orderPaymentService;
+        this.orderNotificationService = orderNotificationService;
     }
     
     // SRP: Single method with single responsibility - process an order
@@ -24,29 +43,26 @@ public class OrderProcessor {
         System.out.println("\n=== Processing Order for " + customerName + " ===");
         
         // Calculate discount
-        double discount = discountCalculator.calculateDiscount(orderAmount);
-        double finalAmount = orderAmount - discount;
-        
-        System.out.println("Original amount: $" + orderAmount);
-        System.out.println("Discount (" + discountCalculator.getDiscountType() + "): $" + discount);
-        System.out.println("Final amount: $" + finalAmount);
+        OrderPricing pricing = orderPricingService.applyDiscount(orderAmount, discountCalculator);
+
+        System.out.println("Original amount: $" + pricing.getOriginalAmount());
+        System.out.println("Discount (" + pricing.getDiscountLabel() + "): $" + pricing.getDiscountApplied());
+        System.out.println("Final amount: $" + pricing.getFinalAmount());
         
         // Process payment
-        System.out.println("Payment method: " + paymentProcessor.getPaymentMethod());
-        boolean paymentSuccess = paymentProcessor.processPayment(finalAmount);
+        PaymentOutcome paymentOutcome = orderPaymentService.processPayment(paymentProcessor, pricing.getFinalAmount());
+        System.out.println("Payment method: " + paymentOutcome.getPaymentMethod());
         
         // Send notification
-        String message;
-        if (paymentSuccess) {
-            message = "Order processed successfully! Amount: $" + finalAmount;
+        String message = orderNotificationService.composeMessage(paymentOutcome, pricing);
+        if (paymentOutcome.isSuccessful()) {
             System.out.println("[SUCCESS] Payment successful!");
         } else {
-            message = "Order failed! Payment of $" + finalAmount + " was declined.";
             System.out.println("[FAILED] Payment failed!");
         }
-        
-        notificationService.sendNotification(message);
-        
-        return paymentSuccess;
+
+        orderNotificationService.send(notificationService, message);
+
+        return paymentOutcome.isSuccessful();
     }
 }
