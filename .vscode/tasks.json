@@ -1,0 +1,50 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Compile SOLID Demo",
+            "type": "shell",
+            "command": "javac",
+            "args": [
+                "-cp", "src/main/java",
+                "-d", "target/classes",
+                "-sourcepath", "src/main/java",
+                "-source", "8",
+                "-target", "8",
+                "src/main/java/com/example/solid/SolidDemo.java"
+            ],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            }
+        },
+        {
+            "label": "Run SOLID Demo",
+            "type": "shell",
+            "command": "java",
+            "args": [
+                "-cp", "target/classes",
+                "com.example.solid.SolidDemo"
+            ],
+            "group": "test",
+            "dependsOn": "Compile SOLID Demo",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            }
+        },
+        {
+            "label": "Compile and Run SOLID Demo",
+            "dependsOrder": "sequence",
+            "dependsOn": [
+                "Compile SOLID Demo",
+                "Run SOLID Demo"
+            ]
+        }
+    ]
+}
